@@ -10,11 +10,11 @@ class ShortClipsDataset(Dataset):
     Lädt WAV-Dateien direkt als Roh-Audio (Wellenform).
     Pad/Truncate auf max_length (4410 Samples = 100ms bei 44.1 kHz).
     Ordnerstruktur:
-      /home/pi/audios/clap
-      /home/pi/audios/no_clap
+      ./../../audios/clap
+      ./../../audios/no_clap
     """
 
-    def __init__(self, root_dir="/home/pi/audios", max_length=4410, sample_rate=44100):
+    def __init__(self, root_dir="./../../audios", max_length=4410, sample_rate=44100):
         """
         root_dir: Hauptordner mit Unterverzeichnissen 'clap' und 'no_clap'
         max_length: maximale Anzahl Samples (100ms = 4410 bei 44.1kHz)
@@ -184,11 +184,11 @@ def eval_model(model, dataloader, criterion, device):
 # Hauptablauf
 # ----------------------------------------------------------
 def main():
-    data_root = "/home/pi/audios"  # Angepasster Pfad
+    data_root = "./../../audios"  # Angepasster Pfad
     max_length = 4410              # ~100ms bei 44.1kHz
     sample_rate = 44100
     batch_size = 16
-    num_epochs = 15
+    num_epochs = 100
     learning_rate = 0.001
 
     device = torch.device("cpu") 
@@ -215,16 +215,20 @@ def main():
 
     for epoch in range(num_epochs):
         train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, criterion, device)
-
         val_loss, val_acc, fp, fn, total = eval_model(model, val_loader, criterion, device)
 
         print(f"Epoch [{epoch+1}/{num_epochs}] "
               f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f} | "
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f} | "
               f"FP: {fp}/{total}, FN: {fn}/{total}")
+    
+        # Abbruchkriterium: Wenn Val Acc >= 1, beende das Training
+        if val_acc >= 1:
+            print("Val Acc 100% erreicht. Breche Training ab...")
+            break
 
     # Modell speichern
-    torch.save(model.state_dict(), "clap_raw_shortclips.pth")
+    torch.save(model.state_dict(), "ML_CNN_wav_faltung_netz.pth")
     print("Training abgeschlossen und Modell gespeichert.")
 
 

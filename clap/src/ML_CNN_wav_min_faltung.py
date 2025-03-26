@@ -14,7 +14,7 @@ class ShortClipsDataset(Dataset):
       /home/pi/audios/no_clap
     """
 
-    def __init__(self, root_dir="/home/pi/audios", max_length=4410, sample_rate=44100):
+    def __init__(self, root_dir="./../../audios", max_length=4410, sample_rate=44100):
         """
         root_dir: Hauptordner mit Unterverzeichnissen 'clap' und 'no_clap'
         max_length: maximale Anzahl Samples (100ms = 4410 bei 44.1kHz)
@@ -82,31 +82,32 @@ class AudioCNN1D(nn.Module):
     """
     def __init__(self, num_classes=2):
         super(AudioCNN1D, self).__init__()
-        # 1D-Conv-Blöcke
-        self.conv1 = nn.Sequential(
-            nn.Conv1d(1, 16, kernel_size=9, stride=1, padding=4),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=4)  # 4410 -> ~1102
+        # Eine 1D-Conv-Schicht mit 32 Kanälen
+        self.conv = nn.Conv1d(
+            in_channels=1,
+            out_channels=32,
+            kernel_size=9,
+            stride=1
         )
-        self.conv2 = nn.Sequential(
-            nn.Conv1d(16, 32, kernel_size=9, stride=1, padding=4),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=4)  # ~1102 -> ~275
-        )
-        # Falls du mehr Tiefe brauchst: zusätzliche Convs
-        # Ausgabe: (batch, 32, ~275) => ~ 32*275 = 8800
-
-        self.fc1 = nn.Linear(32 * 275, 128)
-        self.fc2 = nn.Linear(128, num_classes)
+        # Anschließende Fully-Connected Schicht: 32 -> num_classes
+        self.fc1 = nn.Linear(32, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, num_classes)
 
     def forward(self, x):
-        # x: (Batch, 1, 4410)
-        x = self.conv1(x)           # -> (Batch, 16, ~1102)
-        x = self.conv2(x)           # -> (Batch, 32, ~275)
-        x = x.view(x.size(0), -1)   # -> (Batch, 8800) [ca.]
+        # x hat Form (Batch, 1, 4410)
+        x = self.conv(x)            # => (Batch, 32, ~4410)
+        x = nn.functional.relu(x)
+
+        # Global Average Pooling: Mittelwert über Zeitdimension
+        x = x.mean(dim=2)          # => (Batch, 32)
+
+        # Anschließende Klassifikation
         x = self.fc1(x)
-        x = torch.relu(x)
-        x = self.fc2(x)
+        x = nn.functional.relu(x)
+        x = self.fc2(x)  
+        x = nn.functional.relu(x)
+        x = self.fc3(x)  
         return x
 
 # ----------------------------------------------------------
@@ -184,11 +185,11 @@ def eval_model(model, dataloader, criterion, device):
 # Hauptablauf
 # ----------------------------------------------------------
 def main():
-    data_root = "/home/pi/audios"  # Angepasster Pfad
+    data_root = "./../../audios"
     max_length = 4410              # ~100ms bei 44.1kHz
     sample_rate = 44100
     batch_size = 16
-    num_epochs = 15
+    num_epochs = 100
     learning_rate = 0.001
 
     device = torch.device("cpu") 
@@ -215,16 +216,21 @@ def main():
 
     for epoch in range(num_epochs):
         train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, criterion, device)
-
         val_loss, val_acc, fp, fn, total = eval_model(model, val_loader, criterion, device)
 
         print(f"Epoch [{epoch+1}/{num_epochs}] "
               f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f} | "
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f} | "
               f"FP: {fp}/{total}, FN: {fn}/{total}")
+    
+        # Abbruchkriterium: Wenn Val Acc >= 1, beende das Training
+        if val_acc >= 1:
+            print("Val Acc 100% erreicht. Breche Training ab...")
+            break
+
 
     # Modell speichern
-    torch.save(model.state_dict(), "clap_raw_shortclips.pth")
+    torch.save(model.state_dict(), "ML_CNN_wav_min_faltung_netz.pth")
     print("Training abgeschlossen und Modell gespeichert.")
 
 
