@@ -89,12 +89,12 @@ class AudioCNN1D(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv1d(1, 16, kernel_size=9, stride=1, padding=4),
             nn.ReLU(),
-            nn.MaxPool1d(kernel_size=4)  # 4410 -> ~1102
+            nn.MaxPool1d(kernel_size=4)  # 4410 -> ~1102 (bei FFT nur die hälfte ~551)
         )
         self.conv2 = nn.Sequential(
             nn.Conv1d(16, 32, kernel_size=9, stride=1, padding=4),
             nn.ReLU(),
-            nn.MaxPool1d(kernel_size=4)  # ~1102 -> ~275 (bei FFT nur die hälfte 137)
+            nn.MaxPool1d(kernel_size=4)  # ~1102 -> ~275 (bei FFT nur die hälfte ~137)
         )
         # Ausgabe: (batch, 32, ~275) => ~ 32*275 = 8800
 

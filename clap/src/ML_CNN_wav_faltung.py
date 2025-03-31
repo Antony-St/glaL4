@@ -93,7 +93,6 @@ class AudioCNN1D(nn.Module):
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=4)  # ~1102 -> ~275
         )
-        # Falls du mehr Tiefe brauchst: zusätzliche Convs
         # Ausgabe: (batch, 32, ~275) => ~ 32*275 = 8800
 
         self.fc1 = nn.Linear(32 * 275, 128)
